@@ -129,6 +129,15 @@ all_states = get_all_states()
 
 
 class Judger:
+
+    """
+    A class to set up a game for two players.
+    player1 and player 2 are both assumed to be Player class (either AI or Human player).
+
+    """
+
+
+
     # @player1: the player who will move first, its chessman will be 1
     # @player2: another player with a chessman -1
     def __init__(self, player1, player2):
@@ -142,10 +151,14 @@ class Judger:
         self.current_state = State()
 
     def reset(self):
+        # the players should have a .reset() method.
+        # 1. for AI players, this forces the AI players to 'forget' everything
+        # 2. for human player, this doesn't do anything. (human memory is external)
         self.p1.reset()
         self.p2.reset()
 
     def alternate(self):
+        # this generate a iterator that yields player 1 and player 2 alternately.
         while True:
             yield self.p1
             yield self.p2
@@ -154,11 +167,21 @@ class Judger:
     def play(self, print_state=False):
         alternator = self.alternate()
         self.reset()
+
+        # initiate an state,
+        # corresponding to the empty board 
+        # when the game is started
+        # this also corresponds to the 'environment' in RL setting
         current_state = State()
+
+        # .set_state makes the agent 'remembers'
+        # the current state
         self.p1.set_state(current_state)
         self.p2.set_state(current_state)
         if print_state:
             current_state.print_state()
+
+        # keeping playing alternately:
         while True:
             player = next(alternator)
             i, j, symbol = player.act()
