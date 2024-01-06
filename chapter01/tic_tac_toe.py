@@ -144,15 +144,23 @@ class Judger:
         self.p1 = player1
         self.p2 = player2
         self.current_player = None
+
+        # gives symbols to each player
         self.p1_symbol = 1
         self.p2_symbol = -1
+
+        # ask the players to remember their own symbols
+        # for AI players, this also initialize the self.estimate (value function) for all states:
         self.p1.set_symbol(self.p1_symbol)
         self.p2.set_symbol(self.p2_symbol)
+
+        # set the initial state (empty board)
         self.current_state = State()
 
     def reset(self):
         # the players should have a .reset() method.
-        # 1. for AI players, this forces the AI players to 'forget' everything
+        # 1.1 for AI players, this forces the AI players to 'forget' the 'states' for the current game
+        # 1.2 but the AI player should retain the self.estimate (value function)
         # 2. for human player, this doesn't do anything. (human memory is external)
         self.p1.reset()
         self.p2.reset()
@@ -181,9 +189,19 @@ class Judger:
         if print_state:
             current_state.print_state()
 
-        # keeping playing alternately:
+        # keeping playing alternately
+        # until the game ends
+        # this represents one game (one episode):
+        # return a winner (0 if no one wins)
         while True:
             player = next(alternator)
+
+            # the player will act (pick a move)
+            # for human player, this prompt the user to input the next move
+            # for AI player, this chooses an action based on
+            # 1. the current state as recognized by the AI player
+            # 2. the AI player's internal self.estimations  (value function)
+        
             i, j, symbol = player.act()
             next_state_hash = current_state.next_state(i, j, symbol).hash()
             current_state, is_end = all_states[next_state_hash]
@@ -231,6 +249,7 @@ class Player:
                 self.estimations[hash_val] = 0.5
 
     # update value estimation
+    # this is for training (learning)
     def backup(self):
         states = [state.hash() for state in self.states]
 
@@ -244,7 +263,10 @@ class Player:
     # choose an action based on the state
     def act(self):
         state = self.states[-1]
-        next_states = []
+        # 'next states' will contain all possible 'next state' from current 'state' (i.e. the latest state)
+        # in hash form
+        # this allows the AI player players to choose 
+        next_states = [] 
         next_positions = []
         for i in range(BOARD_ROWS):
             for j in range(BOARD_COLS):
@@ -253,6 +275,7 @@ class Player:
                     next_states.append(state.next_state(
                         i, j, self.symbol).hash())
 
+        # select
         if np.random.rand() < self.epsilon:
             action = next_positions[np.random.randint(len(next_positions))]
             action.append(self.symbol)
@@ -311,9 +334,13 @@ def train(epochs, print_every_n=500):
     player1 = Player(epsilon=0.01)
     player2 = Player(epsilon=0.01)
     judger = Judger(player1, player2)
+
+    # count the number of wins and loses for each player
+    # this should be an integer
     player1_win = 0.0
     player2_win = 0.0
     for i in range(1, epochs + 1):
+        # play one game (one episode) until the end of the game:
         winner = judger.play(print_state=False)
         if winner == 1:
             player1_win += 1
@@ -321,6 +348,9 @@ def train(epochs, print_every_n=500):
             player2_win += 1
         if i % print_every_n == 0:
             print('Epoch %d, player 1 winrate: %.02f, player 2 winrate: %.02f' % (i, player1_win / i, player2_win / i))
+        
+        # both players should 'learn' after each game
+        # both players are AI players !
         player1.backup()
         player2.backup()
         judger.reset()
